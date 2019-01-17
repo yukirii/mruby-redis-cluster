@@ -1,0 +1,7 @@
+name: mruby-redis-cluster
+description: RedisCluster class
+author: Yuki Kirii
+website: https://github.com/shiftky/mruby-redis-cluster
+protocol: git
+repository: https://github.com/shiftky/mruby-redis-cluster.git
+license: MIT
