@@ -35,4 +35,14 @@ class RedisCluster
     end
   end
 
+  def hash_slot(key)
+    s = key.index "{"
+    if s
+      e = key.index "}",s+1
+      if e && e != s+1
+        key = key[s+1..e-1]
+      end
+    end
+    RedisClusterCRC16.crc16(key) % HASH_SLOTS
+  end
 end
