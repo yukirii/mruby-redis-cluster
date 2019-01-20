@@ -22,6 +22,11 @@ task :test => :mruby do
   sh "cd mruby && rake all test MRUBY_CONFIG=#{MRUBY_CONFIG}"
 end
 
+desc "mirb"
+task :mirb => :mruby do
+  sh "cd mruby && rake all MRUBY_CONFIG=#{MRUBY_CONFIG} && ./bin/mirb"
+end
+
 desc "cleanup"
 task :clean do
   exit 0 unless File.directory?('mruby')
