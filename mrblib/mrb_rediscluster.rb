@@ -28,15 +28,22 @@ class RedisCluster
     send_cluster_command(argv)
   end
 
+  def cluster_slots
+    @startup_nodes.each do |n|
+      begin
+        redis = Redis.new(n[:host], n[:port])
+        return redis.cluster('slots')
+      rescue
+        next
+      end
+    end
+    raise 'Error: failed to get cluster slots'
+  end
+
   def initialize_slots_cache
     @startup_nodes.map { |n| n[:name] = "#{n[:host]}:#{n[:port]}" }
 
-    # TODO: implement retry process
-    n = @startup_nodes[0]
-    redis = Redis.new(n[:host], n[:port], 2)
-    slots = redis.cluster("slots")
-
-    slots.each do |r|
+    cluster_slots.each do |r|
       (r[0]..r[1]).each do |slot|
         host, port = r[2]
         node = {
@@ -103,7 +110,7 @@ class RedisCluster
 
     if ! @connections[node[:name]]
       close_existing_connection
-      @connections[node[:name]] = Redis.new(node[:host], node[:port], 2)
+      @connections[node[:name]] = Redis.new(node[:host], node[:port])
     end
 
     @connections[node[:name]]
