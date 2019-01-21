@@ -72,11 +72,9 @@ class RedisCluster
   end
 
   def close_existing_connection
-    while @connections.length >= DEFAULT_MAX_CACHED_CONNECTIONS
-      @connections.each do |n, c|
-        c.close
-        @connections.delete(n)
-      end
+    while @connections.length > DEFAULT_MAX_CACHED_CONNECTIONS
+      c = @connections.shift
+      c.close
     end
   end
 

@@ -23,8 +23,4 @@ assert('RedisCluster#set, RedisCluster#get') do
   ret = rc.get 'hoge'
   assert_equal 'OK', result
   assert_equal 'fuga', ret
-
-  # rc.close
-  # assert_raise(Redis::ClosedError) { r.set 'hoge', 'fuga' }
-  # assert_raise(Redis::ClosedError) { r.get 'hoge' }
 end
