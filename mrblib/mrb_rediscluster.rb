@@ -20,10 +20,6 @@ class RedisCluster
     initialize_slots_cache
   end
 
-  def ping
-    raise NotImplementedError
-  end
-
   def method_missing(*argv)
     send_cluster_command(argv)
   end
