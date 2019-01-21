@@ -4,10 +4,6 @@ class RedisCluster
   MAX_REDIRECTIONS = 16
   DEFAULT_MAX_CACHED_CONNECTIONS = 2
 
-  attr_accessor :slots
-  attr_accessor :nodes
-  attr_accessor :startup_nodes
-
   def initialize(startup_nodes, max_cached_connections=nil)
     @startup_nodes = startup_nodes
     @max_cached_connections = max_cached_connections || DEFAULT_MAX_CACHED_CONNECTIONS
