@@ -182,15 +182,22 @@ static mrb_value mrb_redis_cluster(mrb_state *mrb, mrb_value self)
   return mrb_redis_execute_command(mrb, self, argc, argv, lens, &rule);
 }
 
+static mrb_value mrb_redis_asking(mrb_state *mrb, mrb_value self)
+{
+  const char *argv[1];
+  size_t lens[1];
+  int argc = mrb_redis_create_command_noarg(mrb, "asking", argv, lens);
+  ReplyHandlingRule rule = DEFAULT_REPLY_HANDLING_RULE;
+  return mrb_redis_execute_command(mrb, self, argc, argv, lens, &rule);
+}
+
 void mrb_mruby_redis_cluster_gem_init(mrb_state *mrb)
 {
   struct RClass *redis;
-  struct RClass *rediscluster;
 
   redis = mrb_define_class(mrb, "Redis", mrb->object_class);
   mrb_define_method(mrb, redis, "cluster", mrb_redis_cluster, MRB_ARGS_REQ(1));
-
-  rediscluster = mrb_define_class(mrb, "RedisCluster", mrb->object_class);
+  mrb_define_method(mrb, redis, "asking", mrb_redis_asking, MRB_ARGS_NONE());
 
   DONE;
 }
