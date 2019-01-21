@@ -1,11 +1,8 @@
 /*
 ** mrb_rediscluster.c - RedisCluster class
 **
-** Copyright (c) Yuki Kirii 2019
-**
-** See Copyright Notice in LICENSE
-**
-** This source code contains functinos copied from mrb_redis:
+** This source code contains functinos copied from matsumotory/mrb_redis:
+** https://github.com/matsumotory/mruby-redis
 **
 ** mrb_redis - redis class for mruby
 **
