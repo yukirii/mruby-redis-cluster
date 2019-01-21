@@ -24,3 +24,11 @@ assert('RedisCluster#set, RedisCluster#get') do
   assert_equal 'OK', result
   assert_equal 'fuga', ret
 end
+
+assert('RedisCluster#hash_slot') do
+  rc = RedisCluster.new(HOSTS)
+
+  assert_equal rc.hash_slot('{user1000}.following'), rc.hash_slot('{user1000}.followers')
+  assert_equal rc.hash_slot('foo{{bar}}zap'), rc.hash_slot('{bar')
+  assert_equal rc.hash_slot('foo{bar}{zap}'), rc.hash_slot('bar')
+end
