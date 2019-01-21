@@ -7,24 +7,24 @@ HOSTS = [
   { host: '127.0.0.1', port: 7001 },
 ]
 
-assert('Redis#ping') do
-  r = RedisCluster.new(HOSTS)
-
-  assert_equal 'PONG', r.ping
-  r.close
-
-  assert_raise(Redis::ClosedError) { r.ping }
+assert('RedisCluster#extract_key') do
+  rc = RedisCluster.new(HOSTS)
+  %i(info multi exec slaveof config shutdown).each do |cmd|
+    assert_equal nil, rc.extract_key([cmd])
+  end
+  assert_equal 'key', rc.extract_key([:set, 'key', 'value'])
+  assert_equal 'key', rc.extract_key([:get, 'key'])
 end
 
-assert('Redis#set, Redis#get') do
-  r = RedisCluster.new(HOSTS)
+assert('RedisCluster#set, RedisCluster#get') do
+  rc = RedisCluster.new(HOSTS)
 
-  result = r.set 'hoge', 'fuga'
-  ret = r.get 'hoge'
-  r.close
-
+  result = rc.set 'hoge', 'fuga'
+  ret = rc.get 'hoge'
   assert_equal 'OK', result
   assert_equal 'fuga', ret
-  assert_raise(Redis::ClosedError) { r.get 'hoge' }
-  assert_raise(Redis::ClosedError) { r.set 'hoge', 'fuga' }
+
+  # rc.close
+  # assert_raise(Redis::ClosedError) { r.set 'hoge', 'fuga' }
+  # assert_raise(Redis::ClosedError) { r.get 'hoge' }
 end
