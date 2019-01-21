@@ -61,10 +61,10 @@ class RedisCluster
 
     initialize_slots_cache if @refresh_slots_cache
 
-    begin
-      key = extract_key(argv)
-      slot = hash_slot(key)
+    key = extract_key(argv)
+    slot = hash_slot(key)
 
+    begin
       redis = get_connection_by(slot)
 
       redis.asking if asking
@@ -77,7 +77,7 @@ class RedisCluster
       end
 
       if err == 'MOVED' || err == 'ASK'
-        err, hash_slot, ip_and_port = e.message.split
+        err, newslot, ip_and_port = e.message.split
 
         if err == 'ASK'
           asking = true
@@ -85,10 +85,9 @@ class RedisCluster
           @refresh_slots_cache = true
         end
 
-        newslot = hash_slot.to_i
-        host, port = ip_and_port.split(':')
-
         unless asking
+          host, port = ip_and_port.split(':')
+          newslot = newslot.to_i
           @slots[newslot] = { host: host, port: port, name: ip_and_port }
         end
       else
