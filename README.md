@@ -1,6 +1,6 @@
 # mruby-redis-cluster   [![Build Status](https://travis-ci.org/shiftky/mruby-redis-cluster.svg?branch=master)](https://travis-ci.org/shiftky/mruby-redis-cluster)
 
-RedisCluster class
+mruby-redis-cluster is a mruby client library for [Redis Cluster](https://redis.io/topics/cluster-spec) based on [matsumotory/mruby-redis](https://github.com/matsumotory/mruby-redis/).
 
 ## INSTALLATION
 
@@ -11,9 +11,9 @@ Add conf.gem line to `build_config.rb`:
 ```ruby
 MRuby::Build.new do |conf|
 
-    # ... (snip) ...
+  # ... (snip) ...
 
-    conf.gem :github => 'shiftky/mruby-redis-cluster'
+  conf.gem :github => 'shiftky/mruby-redis-cluster'
 end
 ```
 
@@ -51,3 +51,9 @@ client.set key, "200"
 ## License
 
 [MIT](https://github.com/shiftky/go-tmsh/blob/master/LICENSE)
+
+## Authors
+
+The C extension in mruby-redis-cluster is a same as [matsumotory/mruby-redis](https://github.com/matsumotory/mruby-redis/).
+
+The RedisCluster client and RedisClusterCRC16 module in mruby-redis-cluster based on [antirez/redis-rb-cluster](https://github.com/antirez/redis-rb-cluster).
