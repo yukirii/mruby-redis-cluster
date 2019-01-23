@@ -136,8 +136,8 @@ class RedisCluster
 
   def close_existing_connection
     while @connections.length > DEFAULT_MAX_CACHED_CONNECTIONS
-      c = @connections.shift
-      c.close
+      name, conn = @connections.shift
+      conn.close
     end
   end
 
