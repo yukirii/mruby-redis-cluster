@@ -1,6 +1,7 @@
 MRuby::Gem::Specification.new('mruby-redis-cluster') do |spec|
   spec.license = 'MIT'
   spec.authors = 'Yuki Kirii'
+  spec.summary = 'Client library for Redis Cluster based on mruby-redis'
   spec.version = '0.0.1'
 
   # for expire test
