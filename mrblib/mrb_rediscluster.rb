@@ -141,6 +141,13 @@ class RedisCluster
     end
   end
 
+  def close_all_connections
+    @connections.each do |name, conn|
+      name, conn = @connections.shift
+      conn.close
+    end
+  end
+
   def extract_key(argv)
     cmd = argv[0].to_s.downcase
     if %w(info multi exec slaveof config shutdown).include?(cmd)
