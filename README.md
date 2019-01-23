@@ -22,10 +22,11 @@ end
 ### Connecting to a Redis Cluster
 
 ```ruby
-client = RedisCluster.new([
-  {host: '127.0.0.1', port: 7000},
-  {host: '127.0.0.1', port: 7001}
-])
+startup_nodes = [
+  { host: '127.0.0.1', port: 7000 },
+  { host: '127.0.0.1', port: 7001 }
+]
+rc = RedisCluster.new(startup_nodes)
 ```
 
 ### Commands
