@@ -38,11 +38,7 @@ class RedisCluster
     cluster_slots.each do |r|
       (r[0]..r[1]).each do |slot|
         host, port = r[2]
-        node = {
-          host: host,
-          port: port,
-          name: "#{host}:#{port}"
-        }
+        node = { host: host, port: port, name: "#{host}:#{port}" }
         @nodes << node
         @slots[slot] = node
 
@@ -56,48 +52,79 @@ class RedisCluster
   end
 
   def send_cluster_command(argv)
+    initialize_slots_cache if @refresh_slots_cache
+
+    try_random_connection = false
     asking = false
     num_redirects = 0
-
-    initialize_slots_cache if @refresh_slots_cache
 
     key = extract_key(argv)
     slot = hash_slot(key)
 
     begin
-      redis = get_connection_by(slot)
+      if try_random_connection
+        redis = get_random_connection
+        try_random_connection = false
+      else
+        redis = get_connection_by(slot)
+      end
 
       redis.asking if asking
       asking = false
 
       return redis.send(argv[0], *argv[1..-1])
+    rescue Redis::ConnectionError => e
+      try_random_connection = true
+      retry
     rescue Redis::ReplyError => e
       if num_redirects >= MAX_REDIRECTIONS
         raise "Error: #{argv[0]} #{argv[1..-1].join(' ')} - max redirection limit exceeded (#{MAX_REDIRECTIONS} times)"
       end
 
+      err, newslot, ip_and_port = e.message.split
       if err == 'MOVED' || err == 'ASK'
-        err, newslot, ip_and_port = e.message.split
-
         if err == 'ASK'
           asking = true
         else
-          @refresh_slots_cache = true
-        end
-
-        unless asking
           host, port = ip_and_port.split(':')
           newslot = newslot.to_i
           @slots[newslot] = { host: host, port: port, name: ip_and_port }
+          @refresh_slots_cache = true
         end
+
+        retry
       else
         raise e
       end
     end
   end
 
+  def get_random_connection
+    @startup_nodes.shuffle.each do |node|
+      conn = @connections[node[:name]]
+      begin
+        if conn.nil?
+          conn = Redis.new(node[:host], node[:port])
+          if conn.ping == 'PONG'
+            close_existing_connection
+            @connections[node[:name]] = conn
+            return conn
+          else
+            conn.close
+          end
+        else
+          return conn if conn.ping == 'PONG'
+        end
+      rescue
+        next
+      end
+    end
+    raise 'Error: failed to get random connection'
+  end
+
   def get_connection_by(slot)
     node = @slots[slot]
+    return get_random_connection if node.nil?
 
     if ! @connections[node[:name]]
       close_existing_connection

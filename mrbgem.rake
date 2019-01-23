@@ -18,6 +18,9 @@ MRuby::Gem::Specification.new('mruby-redis-cluster') do |spec|
   # dependency - mruby-metaprog
   spec.add_dependency 'mruby-metaprog', core: 'mruby-metaprog'
 
+  # dependency - mruby-metaprog
+  spec.add_dependency 'mruby-random', core: 'mruby-random'
+
   # dependency - mruby-redis
   spec.add_dependency('mruby-redis', :github => 'matsumoto-r/mruby-redis')
   mrb_redis_dir = File.expand_path("#{build_dir}/../../../mrbgems/mruby-redis")
