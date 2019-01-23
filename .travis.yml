@@ -2,14 +2,18 @@ language: c
 compiler:
   - gcc
   - clang
+env:
+  - DOCKER_COMPOSE_VERSION=1.23.1
 before_install:
-    - sudo apt-get -qq update
+  - sudo apt-get -qq update
+
+  # Install docker-compose
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
 install:
-    - sudo apt-get -qq install rake bison git gperf
-before_script:
-  - cd ../
-  - git clone https://github.com/mruby/mruby.git
-  - cd mruby
-  - cp -fp ../mruby-redis-cluster/.travis_build_config.rb build_config.rb
+  - sudo apt-get -qq install rake bison git gperf
 script:
-  - make all test
+  - /usr/local/bin/docker-compose up -d
+  - rake test
