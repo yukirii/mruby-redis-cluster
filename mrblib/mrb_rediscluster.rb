@@ -9,7 +9,6 @@ class RedisCluster
     @max_cached_connections = max_cached_connections || DEFAULT_MAX_CACHED_CONNECTIONS
 
     @slots = {}
-    @nodes = []
     @connections = {}
     @refresh_slots_cache = false
 
@@ -32,16 +31,39 @@ class RedisCluster
     raise 'Error: failed to get cluster slots'
   end
 
-  def initialize_slots_cache
-    @startup_nodes.map { |n| n[:name] = "#{n[:host]}:#{n[:port]}" }
+  def cluster_nodes
+    @startup_nodes.each do |n|
+      begin
+        redis = Redis.new(n[:host], n[:port])
+        resp = redis.cluster('nodes')
+      rescue
+        next
+      end
 
+      nodes = []
+      resp.split("\n").each do |r|
+        id, ip_port, flags = r.split(' ')
+        host, port = ip_port.split(':')
+        nodes << {
+          id: id,
+          host: host,
+          port: port.to_i,
+          name: "#{host}:#{port}",
+          flags: flags
+        }
+      end
+      return nodes
+    end
+    raise 'Error: failed to get cluster nodes'
+  end
+
+  def initialize_slots_cache
+    @startup_nodes = cluster_nodes
     cluster_slots.each do |r|
       (r[0]..r[1]).each do |slot|
         host, port = r[2]
         node = { host: host, port: port, name: "#{host}:#{port}" }
-        @nodes << node
         @slots[slot] = node
-
         unless @startup_nodes.include?(node)
           @startup_nodes << node
         end
@@ -81,12 +103,12 @@ class RedisCluster
         raise "Error: #{argv[0]} #{argv[1..-1].join(' ')} - max redirection limit exceeded (#{MAX_REDIRECTIONS} times)"
       end
 
-      err, newslot, ip_and_port = e.message.split
+      err, newslot, ip_port = e.message.split
       if err == 'MOVED' || err == 'ASK'
         if err == 'ASK'
           asking = true
         else
-          host, port = ip_and_port.split(':')
+          host, port = ip_port.split(':')
           newslot = newslot.to_i
           @slots[newslot] = { host: host, port: port, name: ip_and_port }
           @refresh_slots_cache = true
