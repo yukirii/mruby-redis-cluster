@@ -80,10 +80,12 @@ class RedisCluster
     asking = false
     num_redirects = 0
 
-    key = extract_key(argv)
-    slot = hash_slot(key)
+    while num_redirects < MAX_REDIRECTIONS
+      num_redirects += 1
 
-    begin
+      key = extract_key(argv)
+      slot = hash_slot(key)
+
       if try_random_connection
         redis = get_random_connection
         try_random_connection = false
@@ -91,34 +93,27 @@ class RedisCluster
         redis = get_connection_by(slot)
       end
 
-      redis.asking if asking
-      asking = false
-
-      return redis.send(argv[0], *argv[1..-1])
-    rescue Redis::ConnectionError => e
-      try_random_connection = true
-      retry
-    rescue Redis::ReplyError => e
-      if num_redirects >= MAX_REDIRECTIONS
-        raise "Error: #{argv[0]} #{argv[1..-1].join(' ')} - max redirection limit exceeded (#{MAX_REDIRECTIONS} times)"
-      end
-
-      err, newslot, ip_port = e.message.split
-      if err == 'MOVED' || err == 'ASK'
-        if err == 'ASK'
-          asking = true
-        else
+      begin
+        redis.asking if asking
+        asking = false
+        return redis.send(argv[0], *argv[1..-1])
+      rescue Redis::ConnectionError => e
+        try_random_connection = true
+      rescue Redis::ReplyError => e
+        err, newslot, ip_port = e.message.split
+        if err == 'MOVED'
+          @refresh_slots_cache = true
           host, port = ip_port.split(':')
           newslot = newslot.to_i
-          @slots[newslot] = { host: host, port: port, name: ip_and_port }
-          @refresh_slots_cache = true
+          @slots[newslot] = { host: host, port: port, name: ip_port }
+        elsif err == 'ASK'
+          asking = true
+        else
+          raise e
         end
-
-        retry
-      else
-        raise e
       end
     end
+    raise "Error: #{argv[0]} #{argv[1..-1].join(' ')} - max redirection limit exceeded (#{MAX_REDIRECTIONS} times)"
   end
 
   def get_random_connection
