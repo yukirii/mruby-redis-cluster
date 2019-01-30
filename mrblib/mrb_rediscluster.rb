@@ -98,13 +98,13 @@ class RedisCluster
         asking = false
         return redis.send(argv[0], *argv[1..-1])
       rescue Redis::ReplyError => e
-        err, newslot, ip_port = e.message.split
-        if err == 'MOVED'
+        if e.message.start_with?('MOVED')
           @refresh_slots_cache = true
+          err, newslot, ip_port = e.message.split
           host, port = ip_port.split(':')
           newslot = newslot.to_i
           @slots[newslot] = { host: host, port: port, name: ip_port }
-        elsif err == 'ASK'
+        elsif e.message.start_with?('ASK')
           asking = true
         else
           raise e
