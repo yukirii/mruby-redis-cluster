@@ -4,10 +4,13 @@ class RedisCluster
   MAX_REDIRECTIONS = 16
   DEFAULT_MAX_CACHED_CONNECTIONS = 2
 
+  attr_reader :nodes
+
   def initialize(startup_nodes, max_cached_connections=nil)
     @startup_nodes = startup_nodes
     @max_cached_connections = max_cached_connections || DEFAULT_MAX_CACHED_CONNECTIONS
 
+    @nodes = {}
     @slots = {}
     @connections = {}
     @refresh_slots_cache = false
@@ -20,9 +23,9 @@ class RedisCluster
   end
 
   def cluster_slots
-    @startup_nodes.each do |n|
+    @nodes.each do |id, node|
       begin
-        redis = Redis.new(n[:host], n[:port])
+        redis = Redis.new(node[:host], node[:port])
         return redis.cluster('slots')
       rescue
         next
@@ -31,8 +34,8 @@ class RedisCluster
     raise 'Error: failed to get cluster slots'
   end
 
-  def cluster_nodes
-    @startup_nodes.each do |n|
+  def get_cluster_nodes(nodes)
+    nodes.each do |n|
       begin
         redis = Redis.new(n[:host], n[:port])
         resp = redis.cluster('nodes')
@@ -40,33 +43,35 @@ class RedisCluster
         next
       end
 
-      nodes = []
+      ret = {}
       resp.split("\n").each do |r|
         id, ip_port, flags = r.split(' ')
         host, port = ip_port.split(':')
-        nodes << {
-          id: id,
+        flags = flags.split(',')
+        flags.delete('myself')
+        ret[id] = {
           host: host,
           port: port.to_i,
           name: "#{host}:#{port}",
           flags: flags
         }
       end
-      return nodes
+      return ret
     end
     raise 'Error: failed to get cluster nodes'
   end
 
   def initialize_slots_cache
-    @startup_nodes = cluster_nodes
+    @nodes = if @nodes.empty?
+        get_cluster_nodes(@startup_nodes)
+      else
+        get_cluster_nodes(@nodes.values)
+      end
+
     cluster_slots.each do |r|
       (r[0]..r[1]).each do |slot|
-        host, port = r[2]
-        node = { host: host, port: port, name: "#{host}:#{port}" }
-        @slots[slot] = node
-        unless @startup_nodes.include?(node)
-          @startup_nodes << node
-        end
+        id = r[2][2]
+        @slots[slot] = @nodes[id]
       end
     end
 
@@ -102,8 +107,10 @@ class RedisCluster
           @refresh_slots_cache = true
           err, newslot, ip_port = e.message.split
           host, port = ip_port.split(':')
+          port = port.to_i
           newslot = newslot.to_i
-          @slots[newslot] = { host: host, port: port, name: ip_port }
+          id, node = @nodes.find { |k, v| v[:host] == host && v[:port] == port.to_i }
+          @slots[newslot] = node
         elsif e.message.start_with?('ASK')
           asking = true
         else
@@ -117,7 +124,7 @@ class RedisCluster
   end
 
   def get_random_connection
-    @startup_nodes.shuffle.each do |node|
+    @nodes.values.shuffle.each do |node|
       conn = @connections[node[:name]]
       begin
         if conn.nil?
