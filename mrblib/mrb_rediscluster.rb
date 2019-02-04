@@ -35,9 +35,9 @@ class RedisCluster
   end
 
   def get_cluster_nodes(nodes)
-    nodes.each do |n|
+    nodes.each do |node|
       begin
-        redis = Redis.new(n[:host], n[:port])
+        redis = Redis.new(node[:host], node[:port])
         resp = redis.cluster('nodes')
       rescue
         next
@@ -70,8 +70,8 @@ class RedisCluster
 
     cluster_slots.each do |r|
       (r[0]..r[1]).each do |slot|
-        id = r[2][2]
-        @slots[slot] = @nodes[id]
+        node_id = r[2][2]
+        @slots[slot] = node_id
       end
     end
 
@@ -110,7 +110,7 @@ class RedisCluster
           port = port.to_i
           newslot = newslot.to_i
           id, node = @nodes.find { |k, v| v[:host] == host && v[:port] == port.to_i }
-          @slots[newslot] = node
+          @slots[newslot] = id
         elsif e.message.start_with?('ASK')
           asking = true
         else
@@ -124,14 +124,15 @@ class RedisCluster
   end
 
   def get_random_connection
-    @nodes.values.shuffle.each do |node|
-      conn = @connections[node[:name]]
+    @nodes.keys.shuffle.each do |node_id|
+      conn = @connections[node_id]
       begin
         if conn.nil?
+          node = @nodes[node_id]
           conn = Redis.new(node[:host], node[:port])
           if conn.ping == 'PONG'
             close_existing_connection
-            @connections[node[:name]] = conn
+            @connections[node_id] = conn
             return conn
           else
             conn.close
@@ -147,29 +148,30 @@ class RedisCluster
   end
 
   def get_connection_by(slot)
-    node = @slots[slot]
-    return get_random_connection if node.nil?
+    node_id = @slots[slot]
+    return get_random_connection if node_id.nil?
 
-    if ! @connections[node[:name]]
+    if ! @connections[node_id]
       close_existing_connection
-      @connections[node[:name]] = Redis.new(node[:host], node[:port])
+      node = @nodes[node_id]
+      @connections[node_id] = Redis.new(node[:host], node[:port])
     end
 
-    @connections[node[:name]]
+    @connections[node_id]
   end
 
   def close_existing_connection
     while @connections.length > DEFAULT_MAX_CACHED_CONNECTIONS
-      name, conn = @connections.shift
+      id, conn = @connections.shift
       conn.close
     end
   end
 
   def close_all_connections
-    @connections.each do |name, conn|
-      name, conn = @connections.shift
+    @connections.each do |id, conn|
       conn.close
     end
+    @connections.clear
   end
 
   def extract_key(argv)
