@@ -124,13 +124,14 @@ class RedisCluster
   end
 
   def get_random_connection
+    e = nil
     @nodes.keys.shuffle.each do |node_id|
       conn = @connections[node_id]
       begin
         if conn.nil?
           node = @nodes[node_id]
           conn = Redis.new(node[:host], node[:port])
-          if conn.ping == 'PONG'
+          if conn.ping == "PONG"
             close_existing_connection
             @connections[node_id] = conn
             return conn
@@ -138,13 +139,13 @@ class RedisCluster
             conn.close
           end
         else
-          return conn if conn.ping == 'PONG'
+          return conn if conn.ping == "PONG"
         end
-      rescue
-        next
+      rescue => e
+        # Just try with the next node.
       end
     end
-    raise 'Error: failed to get random connection'
+    raise "Error: failed to get random connection (#{e})"
   end
 
   def get_connection_by(slot)
