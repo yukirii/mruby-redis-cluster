@@ -32,3 +32,7 @@ assert('RedisCluster#hash_slot') do
   assert_equal rc.hash_slot('foo{{bar}}zap'), rc.hash_slot('{bar')
   assert_equal rc.hash_slot('foo{bar}{zap}'), rc.hash_slot('bar')
 end
+
+assert('RedisCluster#close_connection') do
+  assert_raise(TypeError) { RedisCluster.new(HOSTS).close_connection("test") }
+end

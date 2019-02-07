@@ -49,12 +49,14 @@ class RedisCluster
         host, port = ip_port.split(':')
         flags = flags.split(',')
         flags.delete('myself')
-        ret[id] = {
-          host: host,
-          port: port.to_i,
-          name: "#{host}:#{port}",
-          flags: flags
-        }
+        if flags.include?('master') or flags.include?('slave')
+          ret[id] = {
+            host: host,
+            port: port.to_i,
+            name: "#{host}:#{port}",
+            flags: flags
+          }
+        end
       end
       return ret
     end
@@ -117,6 +119,7 @@ class RedisCluster
           raise e
         end
       rescue Redis::ConnectionError => e
+        close_connection(redis)
         try_random_connection = true
       end
     end
@@ -132,7 +135,7 @@ class RedisCluster
           node = @nodes[node_id]
           conn = Redis.new(node[:host], node[:port])
           if conn.ping == "PONG"
-            close_existing_connection
+            close_existing_connections
             @connections[node_id] = conn
             return conn
           else
@@ -142,7 +145,8 @@ class RedisCluster
           return conn if conn.ping == "PONG"
         end
       rescue => e
-        # Just try with the next node.
+        # Try with the next node
+        close_connection(conn) unless conn.nil?
       end
     end
     raise "Error: failed to get random connection (#{e})"
@@ -152,25 +156,35 @@ class RedisCluster
     node_id = @slots[slot]
     return get_random_connection if node_id.nil?
 
-    if ! @connections[node_id]
-      close_existing_connection
+    unless @connections[node_id]
+      close_existing_connections
       node = @nodes[node_id]
-      @connections[node_id] = Redis.new(node[:host], node[:port])
+      begin
+        @connections[node_id] = Redis.new(node[:host], node[:port])
+      rescue
+        return get_random_connection
+      end
     end
 
     @connections[node_id]
   end
 
-  def close_existing_connection
+  def close_connection(conn)
+    raise TypeError unless conn.instance_of?(Redis)
+    @connections.delete_if { |i, c| c.host == conn.host && c.port == conn.port }
+    conn.close
+  end
+
+  def close_existing_connections
     while @connections.length > @max_cached_connections
       id, conn = @connections.shift
-      conn.close
+      close_connection(conn)
     end
   end
 
   def close_all_connections
     @connections.each do |id, conn|
-      conn.close
+      close_connection(conn)
     end
     @connections.clear
   end
