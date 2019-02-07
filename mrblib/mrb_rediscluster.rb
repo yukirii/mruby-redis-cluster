@@ -49,12 +49,14 @@ class RedisCluster
         host, port = ip_port.split(':')
         flags = flags.split(',')
         flags.delete('myself')
-        ret[id] = {
-          host: host,
-          port: port.to_i,
-          name: "#{host}:#{port}",
-          flags: flags
-        }
+        if flags.include?('master') or flags.include?('slave')
+          ret[id] = {
+            host: host,
+            port: port.to_i,
+            name: "#{host}:#{port}",
+            flags: flags
+          }
+        end
       end
       return ret
     end
