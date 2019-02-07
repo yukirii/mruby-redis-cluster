@@ -132,7 +132,7 @@ class RedisCluster
           node = @nodes[node_id]
           conn = Redis.new(node[:host], node[:port])
           if conn.ping == "PONG"
-            close_existing_connection
+            close_existing_connections
             @connections[node_id] = conn
             return conn
           else
@@ -152,25 +152,35 @@ class RedisCluster
     node_id = @slots[slot]
     return get_random_connection if node_id.nil?
 
-    if ! @connections[node_id]
-      close_existing_connection
+    unless @connections[node_id]
+      close_existing_connections
       node = @nodes[node_id]
-      @connections[node_id] = Redis.new(node[:host], node[:port])
+      begin
+        @connections[node_id] = Redis.new(node[:host], node[:port])
+      rescue
+        return get_random_connection
+      end
     end
 
     @connections[node_id]
   end
 
-  def close_existing_connection
+  def close_connection(conn)
+    raise TypeError unless conn.instance_of?(Redis)
+    conn.close
+    @connection.delete_if { |i, c| c.host == conn.host && c.port == conn.port }
+  end
+
+  def close_existing_connections
     while @connections.length > @max_cached_connections
-      id, conn = @connections.shift
-      conn.close
+      conn = @connections.shift
+      close_connection(conn)
     end
   end
 
   def close_all_connections
-    @connections.each do |id, conn|
-      conn.close
+    @connections.each do |i, c|
+      close_connection(conn)
     end
     @connections.clear
   end
