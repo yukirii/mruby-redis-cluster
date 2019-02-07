@@ -144,7 +144,7 @@ class RedisCluster
         end
       rescue => e
         # Try with the next node
-        close_connection(conn)
+        close_connection(conn) unless conn.nil?
       end
     end
     raise "Error: failed to get random connection (#{e})"
@@ -169,19 +169,19 @@ class RedisCluster
 
   def close_connection(conn)
     raise TypeError unless conn.instance_of?(Redis)
+    @connections.delete_if { |i, c| c.host == conn.host && c.port == conn.port }
     conn.close
-    @connection.delete_if { |i, c| c.host == conn.host && c.port == conn.port }
   end
 
   def close_existing_connections
     while @connections.length > @max_cached_connections
-      conn = @connections.shift
+      id, conn = @connections.shift
       close_connection(conn)
     end
   end
 
   def close_all_connections
-    @connections.each do |i, c|
+    @connections.each do |id, conn|
       close_connection(conn)
     end
     @connections.clear
