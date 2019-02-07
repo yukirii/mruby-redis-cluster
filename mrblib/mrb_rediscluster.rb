@@ -117,6 +117,7 @@ class RedisCluster
           raise e
         end
       rescue Redis::ConnectionError => e
+        close_connection(redis)
         try_random_connection = true
       end
     end
@@ -142,7 +143,8 @@ class RedisCluster
           return conn if conn.ping == "PONG"
         end
       rescue => e
-        # Just try with the next node.
+        # Try with the next node
+        close_connection(conn)
       end
     end
     raise "Error: failed to get random connection (#{e})"
