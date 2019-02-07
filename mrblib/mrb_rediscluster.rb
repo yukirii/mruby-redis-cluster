@@ -6,7 +6,7 @@ class RedisCluster
 
   attr_reader :nodes
 
-  def initialize(startup_nodes, max_cached_connections=nil)
+  def initialize(startup_nodes, max_cached_connections = nil, options = {})
     @startup_nodes = startup_nodes
     @max_cached_connections = max_cached_connections || DEFAULT_MAX_CACHED_CONNECTIONS
 
@@ -14,6 +14,8 @@ class RedisCluster
     @slots = {}
     @connections = {}
     @refresh_slots_cache = false
+
+    @logger = options[:logger]
 
     initialize_slots_cache
   end

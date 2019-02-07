@@ -58,4 +58,7 @@ MRuby::Gem::Specification.new('mruby-redis-cluster') do |spec|
   spec.linker.flags_before_libraries << "#{hiredis_dir}/lib/libhiredis.a"
   spec.cc.include_paths << "#{hiredis_dir}/include"
   spec.cc.include_paths << "#{mrb_redis_dir}/include"
+
+  # dependency - mruby-logger
+  spec.add_dependency 'mruby-logger', :github => 'katzer/mruby-logger'
 end
