@@ -133,7 +133,7 @@ class RedisCluster
           raise e
         end
       rescue Redis::ConnectionError => e
-        @logger.debug("Failed to send command to #{node[:name]} - #{e.message} (#{e.class})") if @logger
+        @logger.debug("Failed to send command to #{redis.host}:#{redis.port} - #{e.message} (#{e.class})") if @logger
         close_connection(redis)
         try_random_connection = true
       end
@@ -163,7 +163,7 @@ class RedisCluster
           return conn if conn.ping == "PONG"
         end
       rescue => e
-        @logger.debug("Failed to get connection to #{conn.host}:#{conn.port}, try with the next node - #{e.message} (#{e.class})") if @logger
+        @logger.debug("Failed to get connection to #{@nodes[node_id][:name]}, try with the next node - #{e.message} (#{e.class})") if @logger
         close_connection(conn) unless conn.nil?
       end
     end
