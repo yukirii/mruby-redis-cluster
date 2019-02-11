@@ -30,13 +30,13 @@ class RedisCluster
         redis = Redis.new(node[:host], node[:port])
         return redis.cluster('slots')
       rescue => e
-        @logger.debug("Failed to get cluster slots from #{node[:host]}:#{node[:port]} - #{e.message} (#{e.class})") if @logger
+        log_debug("Failed to get cluster slots from #{node[:host]}:#{node[:port]} - #{e.message} (#{e.class})")
         next
       end
     end
 
     msg = 'Failed to get cluster slots'
-    @logger.error(msg) if @logger
+    log_error(msg)
     raise msg
   end
 
@@ -46,7 +46,7 @@ class RedisCluster
         redis = Redis.new(node[:host], node[:port])
         resp = redis.cluster('nodes')
       rescue => e
-        @logger.debug("Failed to get cluster nodes from #{node[:host]}:#{node[:port]} - #{e.message} (#{e.class})") if @logger
+        log_debug("Failed to get cluster nodes from #{node[:host]}:#{node[:port]} - #{e.message} (#{e.class})")
         next
       end
 
@@ -70,7 +70,7 @@ class RedisCluster
     end
 
     msg = 'Failed to get cluster nodes'
-    @logger.error(msg) if @logger
+    log_error(msg)
     raise msg
   end
 
@@ -90,7 +90,7 @@ class RedisCluster
 
     @refresh_slots_cache = false
 
-    @logger.debug("Initialized slots cache") if @logger
+    log_debug("Initialized slots cache")
   end
 
   def send_cluster_command(argv)
@@ -118,7 +118,7 @@ class RedisCluster
         asking = false
         return redis.send(argv[0], *argv[1..-1])
       rescue Redis::ReplyError => e
-        @logger.debug("Received reply error - #{e.message} (#{e.class})") if @logger
+        log_debug("Received reply error - #{e.message} (#{e.class})")
         if e.message.start_with?('MOVED')
           @refresh_slots_cache = true
           err, newslot, ip_port = e.message.split
@@ -133,14 +133,14 @@ class RedisCluster
           raise e
         end
       rescue Redis::ConnectionError => e
-        @logger.debug("Failed to send command to #{redis.host}:#{redis.port} - #{e.message} (#{e.class})") if @logger
+        log_debug("Failed to send command to #{redis.host}:#{redis.port} - #{e.message} (#{e.class})")
         close_connection(redis)
         try_random_connection = true
       end
     end
 
     msg = "Failed to send command. Max redirection limit exceeded (#{num_redirects} times)"
-    @logger.error(msg) if @logger
+    log_error(msg)
     raise msg
   end
 
@@ -163,7 +163,7 @@ class RedisCluster
           return conn if conn.ping == "PONG"
         end
       rescue => e
-        @logger.debug("Failed to get connection to #{@nodes[node_id][:name]}, try with the next node - #{e.message} (#{e.class})") if @logger
+        log_debug("Failed to get connection to #{@nodes[node_id][:name]}, try with the next node - #{e.message} (#{e.class})")
         close_connection(conn) unless conn.nil?
       end
     end
@@ -180,7 +180,7 @@ class RedisCluster
       begin
         @connections[node_id] = Redis.new(node[:host], node[:port])
       rescue => e
-        @logger.debug("Failed to get connection to #{node[:name]}, try to get random connection - #{e.message} (#{e.class})") if @logger
+        log_debug("Failed to get connection to #{node[:name]}, try to get random connection - #{e.message} (#{e.class})")
         return get_random_connection
       end
     end
@@ -190,7 +190,7 @@ class RedisCluster
 
   def close_connection(conn)
     raise TypeError unless conn.instance_of?(Redis)
-    @logger.debug("Close connection to #{conn.host}:#{conn.port}") if @logger
+    log_debug("Close connection to #{conn.host}:#{conn.port}")
     @connections.delete_if { |i, c| c.host == conn.host && c.port == conn.port }
     conn.close
   end
@@ -227,4 +227,13 @@ class RedisCluster
     end
     RedisClusterCRC16.crc16(key) % HASH_SLOTS
   end
+
+  def log_error(msg)
+    @logger.error(msg) if @logger
+  end
+
+  def log_debug(msg)
+    @logger.debug(msg) if @logger
+  end
+
 end
