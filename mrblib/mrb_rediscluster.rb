@@ -24,10 +24,14 @@ class RedisCluster
     send_cluster_command(argv)
   end
 
+  def get_redis_link(node)
+    Redis.new(node[:host], node[:port])
+  end
+
   def cluster_slots
     @nodes.each do |id, node|
       begin
-        redis = Redis.new(node[:host], node[:port])
+        redis = get_redis_link(node)
         return redis.cluster('slots')
       rescue => e
         log_debug("Failed to get cluster slots from #{node[:host]}:#{node[:port]} - #{e.message} (#{e.class})")
@@ -43,7 +47,7 @@ class RedisCluster
   def get_cluster_nodes(nodes)
     nodes.each do |node|
       begin
-        redis = Redis.new(node[:host], node[:port])
+        redis = get_redis_link(node)
         resp = redis.cluster('nodes')
       rescue => e
         log_debug("Failed to get cluster nodes from #{node[:host]}:#{node[:port]} - #{e.message} (#{e.class})")
@@ -153,7 +157,7 @@ class RedisCluster
       begin
         if conn.nil?
           node = @nodes[node_id]
-          conn = Redis.new(node[:host], node[:port])
+          conn = get_redis_link(node)
           if conn.ping == "PONG"
             close_existing_connections
             @connections[node_id] = conn
@@ -180,7 +184,7 @@ class RedisCluster
       close_existing_connections
       node = @nodes[node_id]
       begin
-        @connections[node_id] = Redis.new(node[:host], node[:port])
+        @connections[node_id] = get_redis_link(node)
       rescue => e
         log_debug("Failed to get connection to #{node[:name]}, try to get random connection - #{e.message} (#{e.class})")
         return get_random_connection

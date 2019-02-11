@@ -64,4 +64,7 @@ MRuby::Gem::Specification.new('mruby-redis-cluster') do |spec|
 
   # dependency - mruby-logger
   spec.add_dependency 'mruby-logger', :github => 'katzer/mruby-logger'
+
+  # test dependency - mruby-mock
+  spec.add_test_dependency 'mruby-mock', :github => 'iij/mruby-mock'
 end
