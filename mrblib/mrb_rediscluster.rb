@@ -75,7 +75,8 @@ class RedisCluster
   end
 
   def initialize_slots_cache
-    @nodes = if @nodes.empty?
+    @nodes =
+      if @nodes.empty?
         get_cluster_nodes(@startup_nodes)
       else
         get_cluster_nodes(@nodes.values)
@@ -106,12 +107,13 @@ class RedisCluster
       key = extract_key(argv)
       slot = hash_slot(key)
 
-      if try_random_connection
-        redis = get_random_connection
-        try_random_connection = false
-      else
-        redis = get_connection_by(slot)
-      end
+      redis =
+        if try_random_connection
+          try_random_connection = false
+          get_random_connection
+        else
+          get_connection_by(slot)
+        end
 
       begin
         redis.asking if asking
