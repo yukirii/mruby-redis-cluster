@@ -22,6 +22,9 @@ MRuby::Gem::Specification.new('mruby-redis-cluster') do |spec|
   # dependency - mruby-metaprog
   spec.add_dependency 'mruby-random', core: 'mruby-random'
 
+  # dependency - mruby-string-ext
+  spec.add_dependency 'mruby-string-ext', core: 'mruby-string-ext'
+
   # dependency - mruby-redis
   spec.add_dependency('mruby-redis', :github => 'matsumoto-r/mruby-redis')
   mrb_redis_dir = File.expand_path("#{build_dir}/../../../mrbgems/mruby-redis")
@@ -58,4 +61,7 @@ MRuby::Gem::Specification.new('mruby-redis-cluster') do |spec|
   spec.linker.flags_before_libraries << "#{hiredis_dir}/lib/libhiredis.a"
   spec.cc.include_paths << "#{hiredis_dir}/include"
   spec.cc.include_paths << "#{mrb_redis_dir}/include"
+
+  # dependency - mruby-logger
+  spec.add_dependency 'mruby-logger', :github => 'katzer/mruby-logger'
 end
