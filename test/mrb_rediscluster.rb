@@ -15,6 +15,7 @@ class MockRedis < Mocks::Mock
     @host = host
     @port = port
     self.stubs(:ping).returns('PONG')
+    self.stubs(:close)
   end
 
   def cluster(cmd)
@@ -35,6 +36,16 @@ class MockRedis < Mocks::Mock
   end
 end
 
+assert('RedisCluster#cluster_slots') do
+  rc = RedisCluster.new(HOSTS)
+  rc.define_singleton_method(:get_redis_link) do |node|
+    mock = MockRedis.new(node[:host], node[:port])
+    mock.define_singleton_method(:cluster) { raise Redis::ConnectionError }
+    mock
+  end
+  assert_raise(RuntimeError) { rc.cluster_slots }
+end
+
 assert('RedisCluster#get_cluster_nodes') do
   rc = RedisCluster.new(HOSTS)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
@@ -51,7 +62,7 @@ assert('RedisCluster#get_cluster_nodes') do
   assert_equal expect, rc.get_cluster_nodes(HOSTS)
 end
 
-assert('RedisCluster#cluster_nodes') do
+assert('RedisCluster#initialize_slots_cache') do
   rc = RedisCluster.new(HOSTS)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
   rc.initialize_slots_cache
@@ -62,6 +73,42 @@ assert('RedisCluster#cluster_nodes') do
   assert_equal '1111', rc.instance_variable_get('@slots')[10922]
   assert_equal '2222', rc.instance_variable_get('@slots')[10923]
   assert_equal '2222', rc.instance_variable_get('@slots')[16383]
+end
+
+assert('RedisCluster#send_cluster_command') do
+  rc = RedisCluster.new(HOSTS)
+  rc.define_singleton_method(:get_redis_link) do |node|
+    mock = MockRedis.new(node[:host], node[:port])
+    mock.define_singleton_method(:send) do
+      return '123456789' if self.port == 7002
+      raise Redis::ReplyError, 'MOVED 12739 127.0.0.1:7002'
+    end
+    mock
+  end
+  rc.initialize_slots_cache
+
+  assert_equal '123456789', rc.send_cluster_command([:get, '123456789'])
+
+  # set wrong node id
+  rc.instance_variable_get('@slots')[12739] = '0000'
+  assert_equal '123456789', rc.send_cluster_command([:get, '123456789'])
+
+  # ASK redirection
+  rc.define_singleton_method(:get_redis_link) do |node|
+    mock = MockRedis.new(node[:host], node[:port])
+    mock.stubs(:asking).returns('OK')
+    mock.define_singleton_method(:send) do
+      if self.port == 7002
+        return '123456789' if @ask_received
+        @ask_received = true
+        raise Redis::ReplyError, 'ASK'
+      end
+      raise Redis::ReplyError, 'MOVED 12739 127.0.0.1:7002'
+    end
+    mock
+  end
+  rc.initialize_slots_cache
+  assert_equal '123456789', rc.send_cluster_command([:get, '123456789'])
 end
 
 assert('RedisCluster#get_connection_by') do
@@ -105,40 +152,8 @@ assert('RedisCluster#get_random_connection') do
   assert_raise(RuntimeError) { rc.get_random_connection }
 end
 
-assert('RedisCluster#send_cluster_command') do
-  rc = RedisCluster.new(HOSTS)
-  rc.define_singleton_method(:get_redis_link) do |node|
-    mock = MockRedis.new(node[:host], node[:port])
-    mock.define_singleton_method(:send) do
-      return '123456789' if self.port == 7002
-      raise Redis::ReplyError, 'MOVED 12739 127.0.0.1:7002'
-    end
-    mock
-  end
-  rc.initialize_slots_cache
-
-  assert_equal '123456789', rc.send_cluster_command([:get, '123456789'])
-
-  # set wrong node id
-  rc.instance_variable_get('@slots')[12739] = '0000'
-  assert_equal '123456789', rc.send_cluster_command([:get, '123456789'])
-
-  # ASK redirection
-  rc.define_singleton_method(:get_redis_link) do |node|
-    mock = MockRedis.new(node[:host], node[:port])
-    mock.stubs(:asking).returns('OK')
-    mock.define_singleton_method(:send) do
-      if self.port == 7002
-        return '123456789' if @ask_received
-        @ask_received = true
-        raise Redis::ReplyError, 'ASK'
-      end
-      raise Redis::ReplyError, 'MOVED 12739 127.0.0.1:7002'
-    end
-    mock
-  end
-  rc.initialize_slots_cache
-  assert_equal '123456789', rc.send_cluster_command([:get, '123456789'])
+assert('RedisCluster#close_connection') do
+  assert_raise(TypeError) { RedisCluster.new(HOSTS).close_connection("test") }
 end
 
 assert('RedisCluster#extract_key') do
@@ -161,8 +176,4 @@ assert('RedisCluster#hash_slot') do
   assert_equal rc.hash_slot('{user1000}.following'), rc.hash_slot('{user1000}.followers')
   assert_equal rc.hash_slot('foo{{bar}}zap'), rc.hash_slot('{bar')
   assert_equal rc.hash_slot('foo{bar}{zap}'), rc.hash_slot('bar')
-end
-
-assert('RedisCluster#close_connection') do
-  assert_raise(TypeError) { RedisCluster.new(HOSTS).close_connection("test") }
 end
