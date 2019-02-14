@@ -127,12 +127,7 @@ class RedisCluster
         log_debug("Received reply error - #{e.message} (#{e.class})")
         if e.message.start_with?('MOVED')
           @refresh_slots_cache = true
-          err, newslot, ip_port = e.message.split
-          host, port = ip_port.split(':')
-          port = port.to_i
-          newslot = newslot.to_i
-          id, node = @nodes.find { |k, v| v[:host] == host && v[:port] == port.to_i }
-          @slots[newslot] = id
+          assign_redirection_node(e.message)
         elsif e.message.start_with?('ASK')
           asking = true
         else
@@ -148,6 +143,15 @@ class RedisCluster
     msg = "Failed to send command. Max redirection limit exceeded (#{num_redirects} times)"
     log_error(msg)
     raise msg
+  end
+
+  def assign_redirection_node(err_msg)
+    err, newslot, ip_port = err_msg.split
+    host, port = ip_port.split(':')
+    port = port.to_i
+    newslot = newslot.to_i
+    id, node = @nodes.find { |k, v| v[:host] == host && v[:port] == port.to_i }
+    @slots[newslot] = id
   end
 
   def get_random_connection

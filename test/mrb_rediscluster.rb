@@ -129,6 +129,15 @@ assert('RedisCluster#get_connection_by') do
   assert_equal 6379, conn.port
 end
 
+assert('RedisCluster#assign_redirection_node') do
+  rc = RedisCluster.new(HOSTS)
+  rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
+  rc.initialize_slots_cache
+
+  rc.assign_redirection_node('MOVED 12739 127.0.0.1:7004')
+  assert_equal '4444', rc.instance_variable_get('@slots')[12739]
+end
+
 assert('RedisCluster#get_random_connection') do
   rc = RedisCluster.new(HOSTS)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
