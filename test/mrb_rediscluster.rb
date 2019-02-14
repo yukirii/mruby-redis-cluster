@@ -122,6 +122,23 @@ assert('RedisCluster#send_cluster_command') do
   # set wrong node id
   rc.instance_variable_get('@slots')[12739] = '0000'
   assert_equal '123456789', rc.send_cluster_command([:get, '123456789'])
+
+  # ASK redirection
+  rc.define_singleton_method(:get_redis_link) do |node|
+    mock = MockRedis.new(node[:host], node[:port])
+    mock.stubs(:asking).returns('OK')
+    mock.define_singleton_method(:send) do
+      if self.port == 7002
+        return '123456789' if @ask_received
+        @ask_received = true
+        raise Redis::ReplyError, 'ASK'
+      end
+      raise Redis::ReplyError, 'MOVED 12739 127.0.0.1:7002'
+    end
+    mock
+  end
+  rc.initialize_slots_cache
+  assert_equal '123456789', rc.send_cluster_command([:get, '123456789'])
 end
 
 assert('RedisCluster#extract_key') do
