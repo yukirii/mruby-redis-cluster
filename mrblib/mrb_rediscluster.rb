@@ -6,7 +6,7 @@ class RedisCluster
 
   attr_reader :nodes
 
-  def initialize(startup_nodes, options = {})
+  def initialize(startup_nodes, options = { initialize_immediately: true })
     @startup_nodes = startup_nodes
 
     @nodes = {}
@@ -17,7 +17,7 @@ class RedisCluster
     @max_cached_connections = options[:cached_connections] || DEFAULT_MAX_CACHED_CONNECTIONS
     @logger = options[:logger]
 
-    initialize_slots_cache
+    initialize_slots_cache unless options[:initialize_immediately] == false
   end
 
   def method_missing(*argv)

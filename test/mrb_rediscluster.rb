@@ -37,7 +37,7 @@ class MockRedis < Mocks::Mock
 end
 
 assert('RedisCluster#cluster_slots') do
-  rc = RedisCluster.new(HOSTS)
+  rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) do |node|
     mock = MockRedis.new(node[:host], node[:port])
     mock.define_singleton_method(:cluster) { raise Redis::ConnectionError }
@@ -47,7 +47,7 @@ assert('RedisCluster#cluster_slots') do
 end
 
 assert('RedisCluster#get_cluster_nodes') do
-  rc = RedisCluster.new(HOSTS)
+  rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
 
   expect = {
@@ -63,7 +63,7 @@ assert('RedisCluster#get_cluster_nodes') do
 end
 
 assert('RedisCluster#initialize_slots_cache') do
-  rc = RedisCluster.new(HOSTS)
+  rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
   rc.initialize_slots_cache
 
@@ -76,7 +76,7 @@ assert('RedisCluster#initialize_slots_cache') do
 end
 
 assert('RedisCluster#send_cluster_command') do
-  rc = RedisCluster.new(HOSTS)
+  rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) do |node|
     mock = MockRedis.new(node[:host], node[:port])
     mock.define_singleton_method(:send) do
@@ -112,7 +112,7 @@ assert('RedisCluster#send_cluster_command') do
 end
 
 assert('RedisCluster#get_connection_by') do
-  rc = RedisCluster.new(HOSTS)
+  rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
   rc.define_singleton_method(:get_random_connection) { MockRedis.new('192.0.2.1', 6379) }
   rc.initialize_slots_cache
@@ -130,7 +130,7 @@ assert('RedisCluster#get_connection_by') do
 end
 
 assert('RedisCluster#assign_redirection_node') do
-  rc = RedisCluster.new(HOSTS)
+  rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
   rc.initialize_slots_cache
 
@@ -139,7 +139,7 @@ assert('RedisCluster#assign_redirection_node') do
 end
 
 assert('RedisCluster#get_random_connection') do
-  rc = RedisCluster.new(HOSTS)
+  rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
   rc.initialize_slots_cache
 
@@ -162,11 +162,11 @@ assert('RedisCluster#get_random_connection') do
 end
 
 assert('RedisCluster#close_connection') do
-  assert_raise(TypeError) { RedisCluster.new(HOSTS).close_connection("test") }
+  assert_raise(TypeError) { RedisCluster.new(HOSTS, initialize_immediately: false).close_connection("test") }
 end
 
 assert('RedisCluster#extract_key') do
-  rc = RedisCluster.new(HOSTS)
+  rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   %i(info multi exec slaveof config shutdown).each do |cmd|
     assert_equal nil, rc.extract_key([cmd])
   end
@@ -174,15 +174,15 @@ assert('RedisCluster#extract_key') do
   assert_equal 'key', rc.extract_key([:get, 'key'])
 end
 
+assert('RedisCluster#hash_slot') do
+  rc = RedisCluster.new(HOSTS, initialize_immediately: false)
+  assert_equal rc.hash_slot('{user1000}.following'), rc.hash_slot('{user1000}.followers')
+  assert_equal rc.hash_slot('foo{{bar}}zap'), rc.hash_slot('{bar')
+  assert_equal rc.hash_slot('foo{bar}{zap}'), rc.hash_slot('bar')
+end
+
 assert('RedisCluster#set, RedisCluster#get') do
   rc = RedisCluster.new(HOSTS)
   assert_equal 'OK', rc.set('hoge', 'fuga')
   assert_equal 'fuga', rc.get('hoge')
-end
-
-assert('RedisCluster#hash_slot') do
-  rc = RedisCluster.new(HOSTS)
-  assert_equal rc.hash_slot('{user1000}.following'), rc.hash_slot('{user1000}.followers')
-  assert_equal rc.hash_slot('foo{{bar}}zap'), rc.hash_slot('{bar')
-  assert_equal rc.hash_slot('foo{bar}{zap}'), rc.hash_slot('bar')
 end
