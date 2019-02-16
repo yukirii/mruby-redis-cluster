@@ -46,9 +46,10 @@ assert('RedisCluster#cluster_slots') do
   assert_raise(RuntimeError) { rc.cluster_slots }
 end
 
-assert('RedisCluster#get_cluster_nodes') do
+assert('RedisCluster#initialize_cluster_nodes') do
   rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
+  rc.initialize_cluster_nodes
 
   expect = {
     '0000' => { host: '127.0.0.1', port: 7000, name: '127.0.0.1:7000@17000', flags: ['master'] },
@@ -59,13 +60,13 @@ assert('RedisCluster#get_cluster_nodes') do
     '5555' => { host: '127.0.0.1', port: 7005, name: '127.0.0.1:7005@17005', flags: ['slave'] }
   }
 
-  assert_equal expect, rc.get_cluster_nodes(HOSTS)
+  assert_equal expect, rc.instance_variable_get('@nodes')
 end
 
 assert('RedisCluster#initialize_slots_cache') do
   rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
-  rc.initialize_slots_cache
+  rc.initialize_cluster_info
 
   assert_equal '0000', rc.instance_variable_get('@slots')[0]
   assert_equal '0000', rc.instance_variable_get('@slots')[5460]
@@ -85,7 +86,7 @@ assert('RedisCluster#send_cluster_command') do
     end
     mock
   end
-  rc.initialize_slots_cache
+  rc.initialize_cluster_info
 
   assert_equal '123456789', rc.send_cluster_command([:get, '123456789'])
 
@@ -107,7 +108,8 @@ assert('RedisCluster#send_cluster_command') do
     end
     mock
   end
-  rc.initialize_slots_cache
+  rc.initialize_cluster_info
+
   assert_equal '123456789', rc.send_cluster_command([:get, '123456789'])
 end
 
@@ -115,7 +117,7 @@ assert('RedisCluster#get_connection_by') do
   rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
   rc.define_singleton_method(:get_random_connection) { MockRedis.new('192.0.2.1', 6379) }
-  rc.initialize_slots_cache
+  rc.initialize_cluster_info
 
   conn = rc.get_connection_by(16383)
   assert_equal '127.0.0.1', conn.host
@@ -132,7 +134,7 @@ end
 assert('RedisCluster#assign_redirection_node') do
   rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
-  rc.initialize_slots_cache
+  rc.initialize_cluster_info
 
   rc.assign_redirection_node('MOVED 12739 127.0.0.1:7004')
   assert_equal '4444', rc.instance_variable_get('@slots')[12739]
@@ -141,7 +143,7 @@ end
 assert('RedisCluster#get_random_connection') do
   rc = RedisCluster.new(HOSTS, initialize_immediately: false)
   rc.define_singleton_method(:get_redis_link) { |node| MockRedis.new(node[:host], node[:port]) }
-  rc.initialize_slots_cache
+  rc.initialize_cluster_info
 
   nodes = {
     '1234' => { host: '192.0.2.1', port: 7000, name: '192.0.2.1:7000', flags: ['master'] }

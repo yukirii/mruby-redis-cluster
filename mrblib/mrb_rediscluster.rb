@@ -4,20 +4,18 @@ class RedisCluster
   MAX_REDIRECTIONS = 16
   DEFAULT_MAX_CACHED_CONNECTIONS = 2
 
-  attr_reader :nodes
-
   def initialize(startup_nodes, options = { initialize_immediately: true })
     @startup_nodes = startup_nodes
 
     @nodes = {}
     @slots = {}
     @connections = {}
-    @refresh_slots_cache = false
+    @refresh_cluster_info = false
 
     @max_cached_connections = options[:cached_connections] || DEFAULT_MAX_CACHED_CONNECTIONS
     @logger = options[:logger]
 
-    initialize_slots_cache unless options[:initialize_immediately] == false
+    initialize_cluster_info unless options[:initialize_immediately] == false
   end
 
   def method_missing(*argv)
@@ -28,8 +26,14 @@ class RedisCluster
     Redis.new(node[:host], node[:port])
   end
 
+  def initialize_cluster_info
+    initialize_cluster_nodes
+    initialize_cluster_slots
+    @refresh_cluster_info = false
+  end
+
   def cluster_slots
-    @nodes.each do |id, node|
+    @nodes.each do |_, node|
       begin
         redis = get_redis_link(node)
         return redis.cluster('slots')
@@ -44,7 +48,9 @@ class RedisCluster
     raise msg
   end
 
-  def get_cluster_nodes(nodes)
+  def initialize_cluster_nodes
+    nodes = @nodes.empty? ? @startup_nodes : @nodes.values
+
     nodes.each do |node|
       begin
         redis = get_redis_link(node)
@@ -54,14 +60,13 @@ class RedisCluster
         next
       end
 
-      ret = {}
       resp.split("\n").each do |r|
         id, ip_port, flags = r.split(' ')
         host, port = ip_port.split(':')
         flags = flags.split(',')
         flags.delete('myself')
         if flags.include?('master') or flags.include?('slave')
-          ret[id] = {
+          @nodes[id] = {
             host: host,
             port: port.to_i,
             name: "#{host}:#{port}",
@@ -70,7 +75,8 @@ class RedisCluster
         end
       end
 
-      return ret
+      log_debug("Initialized cluster nodes")
+      return
     end
 
     msg = 'Failed to get cluster nodes'
@@ -78,28 +84,18 @@ class RedisCluster
     raise msg
   end
 
-  def initialize_slots_cache
-    @nodes =
-      if @nodes.empty?
-        get_cluster_nodes(@startup_nodes)
-      else
-        get_cluster_nodes(@nodes.values)
-      end
-
+  def initialize_cluster_slots
     cluster_slots.each do |r|
       (r[0]..r[1]).each do |slot|
         node_id = r[2][2]
         @slots[slot] = node_id
       end
     end
-
-    @refresh_slots_cache = false
-
     log_debug("Initialized slots cache")
   end
 
   def send_cluster_command(argv)
-    initialize_slots_cache if @refresh_slots_cache
+    initialize_cluster_info if @refresh_cluster_info
 
     try_random_connection = false
     asking = false
@@ -108,14 +104,13 @@ class RedisCluster
     while num_redirects < MAX_REDIRECTIONS
       num_redirects += 1
 
-      key = extract_key(argv)
-      slot = hash_slot(key)
-
       redis =
         if try_random_connection
           try_random_connection = false
           get_random_connection
         else
+          key = extract_key(argv)
+          slot = hash_slot(key)
           get_connection_by(slot)
         end
 
@@ -126,7 +121,7 @@ class RedisCluster
       rescue Redis::ReplyError => e
         log_debug("Received reply error - #{e.message} (#{e.class})")
         if e.message.start_with?('MOVED')
-          @refresh_slots_cache = true
+          @refresh_cluster_info = true
           assign_redirection_node(e.message)
         elsif e.message.start_with?('ASK')
           asking = true
@@ -146,12 +141,10 @@ class RedisCluster
   end
 
   def assign_redirection_node(err_msg)
-    err, newslot, ip_port = err_msg.split
+    _, newslot, ip_port = err_msg.split
     host, port = ip_port.split(':')
-    port = port.to_i
-    newslot = newslot.to_i
-    id, node = @nodes.find { |k, v| v[:host] == host && v[:port] == port.to_i }
-    @slots[newslot] = id
+    id, _ = @nodes.find { |k, v| v[:host] == host && v[:port] == port.to_i }
+    @slots[newslot.to_i] = id
   end
 
   def get_random_connection
@@ -207,30 +200,26 @@ class RedisCluster
 
   def close_existing_connections
     while @connections.length > @max_cached_connections
-      id, conn = @connections.shift
+      _, conn = @connections.shift
       close_connection(conn)
     end
   end
 
   def close_all_connections
-    @connections.each do |id, conn|
-      close_connection(conn)
-    end
+    @connections.each { |id, conn| close_connection(conn) }
     @connections.clear
   end
 
   def extract_key(argv)
     cmd = argv[0].to_s.downcase
-    if %w(info multi exec slaveof config shutdown).include?(cmd)
-      return nil
-    end
-    return argv[1]
+    return nil if %w(info multi exec slaveof config shutdown).include?(cmd)
+    argv[1]
   end
 
   def hash_slot(key)
-    s = key.index "{"
+    s = key.index("{")
     if s
-      e = key.index "}",s+1
+      e = key.index("}", s+1)
       if e && e != s+1
         key = key[s+1..e-1]
       end
