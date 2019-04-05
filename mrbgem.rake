@@ -14,7 +14,7 @@ MRuby::Gem::Specification.new('mruby-redis-cluster') do |spec|
   spec.add_dependency 'mruby-string-ext', core: 'mruby-string-ext'
 
   # dependency - mruby-redis
-  spec.add_dependency 'mruby-redis', github: 'matsumoto-r/mruby-redis'
+  spec.add_dependency 'mruby-redis', github: 'matsumotory/mruby-redis'
 
   # dependency - mruby-logger
   spec.add_dependency 'mruby-logger', github: 'katzer/mruby-logger'
