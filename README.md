@@ -55,6 +55,4 @@ client.set key, "200"
 
 ## Authors
 
-The C extension in mruby-redis-cluster is a same as [matsumotory/mruby-redis](https://github.com/matsumotory/mruby-redis/).
-
 The RedisCluster client and RedisClusterCRC16 module in mruby-redis-cluster based on [antirez/redis-rb-cluster](https://github.com/antirez/redis-rb-cluster).
