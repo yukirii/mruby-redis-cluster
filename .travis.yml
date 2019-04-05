@@ -1,19 +1,21 @@
+sudo: false
+addons:
+  apt:
+    packages:
+      - redis-server
 language: c
 compiler:
   - gcc
   - clang
-env:
-  - DOCKER_COMPOSE_VERSION=1.23.1
-before_install:
-  - sudo apt-get -qq update
-
-  # Install docker-compose
-  - sudo rm /usr/local/bin/docker-compose
-  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
-  - chmod +x docker-compose
-  - sudo mv docker-compose /usr/local/bin
-install:
-  - sudo apt-get -qq install rake bison git gperf
+before_script:
+  - redis-server --port 6379 &
+  - redis-server --port 6380 --requirepass 'secret' &
+  - redis-server --cluster-enabled yes --cluster-config-file 7000-nodes.conf --port 7000 &
+  - redis-server --cluster-enabled yes --cluster-config-file 7001-nodes.conf --port 7001 &
+  - redis-server --cluster-enabled yes --cluster-config-file 7002-nodes.conf --port 7002 &
+  - redis-server --cluster-enabled yes --cluster-config-file 7003-nodes.conf --port 7003 &
+  - redis-server --cluster-enabled yes --cluster-config-file 7004-nodes.conf --port 7004 &
+  - redis-server --cluster-enabled yes --cluster-config-file 7005-nodes.conf --port 7005 &
+  - echo yes | redis-cli --cluster create 127.0.0.1:7000 127.0.0.1:7001 127.0.0.1:7002 127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005
 script:
-  - /usr/local/bin/docker-compose up -d
   - rake test
