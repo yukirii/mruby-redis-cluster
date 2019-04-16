@@ -1,4 +1,4 @@
-# mruby-redis-cluster   [![Build Status](https://travis-ci.org/shiftky/mruby-redis-cluster.svg?branch=master)](https://travis-ci.org/shiftky/mruby-redis-cluster)
+# mruby-redis-cluster   [![Build Status](https://travis-ci.org/yukirii/mruby-redis-cluster.svg?branch=master)](https://travis-ci.org/yukirii/mruby-redis-cluster)
 
 mruby-redis-cluster is a mruby client library for [Redis Cluster](https://redis.io/topics/cluster-spec) based on [matsumotory/mruby-redis](https://github.com/matsumotory/mruby-redis/).
 
@@ -13,7 +13,7 @@ MRuby::Build.new do |conf|
 
   # ... (snip) ...
 
-  conf.gem :github => 'shiftky/mruby-redis-cluster'
+  conf.gem :github => 'yukirii/mruby-redis-cluster'
 end
 ```
 
@@ -51,7 +51,7 @@ client.set key, "200"
 
 ## License
 
-[MIT](https://github.com/shiftky/go-tmsh/blob/master/LICENSE)
+[MIT](https://github.com/yukirii/mruby-redis-cluster/blob/master/LICENSE)
 
 ## Authors
 
